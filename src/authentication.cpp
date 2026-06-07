@@ -27,6 +27,23 @@ std::filesystem::path GetTokenFilePath() {
     return GetExecutableDirectory() / "token.json";
 }
 
+std::string GetSystemCaCertPath() {
+    static const char *paths[] = {
+        "/etc/ssl/certs/ca-certificates.crt",
+        "/etc/pki/tls/certs/ca-bundle.crt",
+        "/etc/ssl/cert.pem",
+        nullptr
+    };
+
+    for (const char **path = paths; *path != nullptr; ++path) {
+        if (std::filesystem::exists(*path)) {
+            return *path;
+        }
+    }
+
+    return {};
+}
+
 }
 
 
@@ -99,6 +116,10 @@ void Authentication::GetToken() {
         }
         // Create an HTTPS client for Discord's token endpoint
         httplib::SSLClient cli("discord.com", 443);
+        const std::string ca_cert_path = GetSystemCaCertPath();
+        if (!ca_cert_path.empty()) {
+            cli.set_ca_cert_path(ca_cert_path);
+        }
         cli.enable_server_certificate_verification(!gDebugEnabled);
         if (gDebugEnabled) {
             cli.set_error_logger([](const httplib::Error &error, const httplib::Request *request) {
